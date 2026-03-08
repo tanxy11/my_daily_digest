@@ -8,17 +8,28 @@
 profile:
   name: Xinyu
   interests:
-    - machine learning (systems, training, inference, algorithms)
-    - software engineering craft (clean code, architecture, testing)
-    - AI industry (new models, research breakthroughs, company moves)
-    - technology business and startups
-    - semiconductor and hardware
-    - science (physics, biology, climate)
-    - books, movies, live performances worth checking out
+    - AI and machine learning (new models, research breakthroughs, industry
+      moves, infrastructure, and the craft of building systems)
+    - technology business (startup strategy, defensibility, platform shifts,
+      when to build vs. buy, how products win or die)
+    - software engineering as a craft (architecture, testing, building
+      things from scratch to understand them)
+    - semiconductor and hardware (GPU architecture, chip supply chains,
+      geopolitics of compute)
+    - science (physics, biology, genetics, climate — breakthroughs and
+      things that change how we understand the world)
+    - economics and policy (trade, labor markets, regulation, how
+      technology reshapes industries and jobs)
+    - culture worth experiencing (movies, books, live performances with
+      real depth or craft — skip the blockbuster hype)
+    - ideas that challenge assumptions or connect fields in unexpected ways
   background: >
-    ML engineer who builds algorithms from scratch to understand them deeply.
-    Cares about both the math and the code quality. Based in California.
-    Interested in building personalized software tools.
+    ML engineer based in California who builds algorithms from scratch to
+    understand them deeply. Technically strong but reads broadly — wants to
+    understand the world, not just the tech stack. Thinks critically about
+    moats, incentives, and why systems work the way they do. Prefers
+    substance over hype. Don't dumb things down, but don't make everything
+    about ML either.
   location: Santa Clara, California
 
 sources:
@@ -47,6 +58,10 @@ sources:
         url: "https://www.reddit.com/r/singularity/.rss"
       - section: r/TrueFilm
         url: "https://www.reddit.com/r/TrueFilm/.rss"
+      - section: r/investing
+        url: "https://www.reddit.com/r/investing/.rss"
+      - section: r/philosophy
+        url: "https://www.reddit.com/r/philosophy/.rss"
 
 digest:
   target_read_time_minutes: 5
