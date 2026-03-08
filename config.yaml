@@ -1,0 +1,76 @@
+# ============================================================
+# Daily Digest — Configuration
+# ============================================================
+# This file is the "personal data container." The skeleton code
+# is the same for everyone; only this config changes per user.
+# ============================================================
+
+profile:
+  name: Xinyu
+  interests:
+    - machine learning (systems, training, inference, algorithms)
+    - software engineering craft (clean code, architecture, testing)
+    - AI industry (new models, research breakthroughs, company moves)
+    - technology business and startups
+    - semiconductor and hardware
+    - science (physics, biology, climate)
+    - books, movies, live performances worth checking out
+  background: >
+    ML engineer who builds algorithms from scratch to understand them deeply.
+    Cares about both the math and the code quality. Based in California.
+    Interested in building personalized software tools.
+  location: Santa Clara, California
+
+sources:
+  nyt:
+    type: rss
+    feeds:
+      - section: Technology
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"
+      - section: Business
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"
+      - section: Arts
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml"
+      - section: Top Stories
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
+  hn:
+    type: rss
+    feeds:
+      - section: Best Stories
+        url: "https://hnrss.org/best"
+      - section: Best Comments
+        url: "https://hnrss.org/bestcomments"
+  reddit:
+    type: rss
+    feeds:
+      - section: r/singularity
+        url: "https://www.reddit.com/r/singularity/.rss"
+      - section: r/TrueFilm
+        url: "https://www.reddit.com/r/TrueFilm/.rss"
+
+digest:
+  target_read_time_minutes: 5
+  max_items:
+    read_in_depth: 4
+    check_it_out: 3
+    fyi: 8
+  style: >
+    Concise, no fluff. Technical when relevant. Don't dumb things down.
+    Write like a sharp colleague giving a morning briefing, not a news anchor.
+
+delivery:
+  method: email
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+  from_address: "${SMTP_USERNAME}"
+  to_address: "${DIGEST_TO_EMAIL}"
+  schedule: "0 8 * * *"
+  timezone: "America/Los_Angeles"
+
+llm:
+  provider: anthropic
+  model: "claude-sonnet-4-20250514"
+  api_key: "${ANTHROPIC_API_KEY}"
