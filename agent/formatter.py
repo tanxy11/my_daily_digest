@@ -34,9 +34,10 @@ def format_digest(items: list[ContentItem], config: dict[str, Any]) -> tuple[str
         meta = ACTION_META[action_type]
         items_html = ""
         for item in group:
+            title_href = item.discussion_url if item.discussion_url else item.url
             items_html += f"""\
             <tr><td style="padding:12px 0;border-bottom:1px solid #eee;">
-              <a href="{item.url}" style="color:#1a1a1a;text-decoration:none;font-weight:600;font-size:15px;">{item.title}</a><br/>
+              <a href="{title_href}" style="color:#1a1a1a;text-decoration:none;font-weight:600;font-size:15px;">{item.title}</a><br/>
               <span style="color:#444;font-size:14px;line-height:1.5;">{item.summary}</span><br/>
               <span style="color:#888;font-size:13px;">{item.source}</span>
             </td></tr>

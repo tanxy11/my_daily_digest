@@ -35,6 +35,7 @@ def fetch_rss_feed(url: str, source_label: str) -> list[ContentItem]:
             author=_extract_author(entry),
             published=published,
             tags=[t.get("term", "") for t in entry.get("tags", [])],
+            discussion_url=entry.get("comments", ""),
         )
         items.append(item)
 

@@ -21,6 +21,7 @@ class ContentItem:
     author: str = ""
     published: datetime | None = None
     tags: list[str] = field(default_factory=list)
+    discussion_url: str = ""  # e.g. HN thread URL when different from article URL
 
     # Set by the processing layer, not by fetchers
     action_type: str = ""  # "read_in_depth", "check_it_out", "fyi"
