@@ -38,9 +38,48 @@ def save_web_digest(html: str, web_dir: Path, config: dict[str, Any],
 
 # ── Nav injection ─────────────────────────────────────────────────────────────
 
-def _inject_nav(html: str) -> str:
-    return re.sub(r'(<body[^>]*>)', r'\1' + _NAV_BAR, html, count=1)
+_RESPONSIVE_STYLE = (
+    '<style>'
+    'table[width="600"]{max-width:600px!important;width:100%!important;}'
+    'td{word-break:break-word;}'
+    '@media(max-width:640px){'
+    'table[width="600"]{min-width:0!important;}'
+    'td[style*="padding"]{padding-left:12px!important;padding-right:12px!important;}'
+    '}'
+    '</style>'
+)
 
+
+def _inject_nav(html: str) -> str:
+    # Inject responsive overrides into <head> and nav bar into <body>
+    out = re.sub(r'(</head>)', _RESPONSIVE_STYLE + r'\1', html, count=1)
+    return re.sub(r'(<body[^>]*>)', r'\1' + _NAV_BAR, out, count=1)
+
+
+_INDEX_CSS = """\
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       background: #f5f5f5; display: flex; min-height: 100vh; }
+.sidebar { width: 180px; background: #1a1a1a; padding: 24px 16px;
+           flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar h2 { color: #fff; font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.sidebar ul { list-style: none; }
+.sidebar a:hover { color: #fff !important; }
+.sidebar-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #333; }
+.main { flex: 1; overflow: auto; }
+table[width="600"] { max-width: 600px !important; width: 100% !important; }
+@media (max-width: 640px) {
+  body { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; padding: 16px;
+             display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; }
+  .sidebar h2 { margin-bottom: 0; margin-right: 12px; }
+  .sidebar ul { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .sidebar li { margin-bottom: 0 !important; }
+  .sidebar-footer { margin-top: 0; padding-top: 0; border-top: none; margin-left: 12px; }
+  .main table[width="600"] { min-width: 0 !important; }
+  .main td[style*="padding"] { padding-left: 12px !important; padding-right: 12px !important; }
+}
+"""
 
 # ── Index page ────────────────────────────────────────────────────────────────
 
@@ -74,18 +113,7 @@ def _regenerate_index(web_dir: Path, latest_html: str) -> None:
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Morning Digest</title>
-  <style>
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5; display: flex; min-height: 100vh; }}
-    .sidebar {{ width: 180px; background: #1a1a1a; padding: 24px 16px;
-                flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }}
-    .sidebar h2 {{ color: #fff; font-size: 15px; font-weight: 700; margin-bottom: 16px; }}
-    .sidebar ul {{ list-style: none; }}
-    .sidebar a:hover {{ color: #fff !important; }}
-    .sidebar-footer {{ margin-top: 24px; padding-top: 16px; border-top: 1px solid #333; }}
-    .main {{ flex: 1; overflow: auto; }}
-  </style>
+  <style>{_INDEX_CSS}</style>
 </head>
 <body>
   <div class="sidebar">
@@ -101,6 +129,16 @@ def _regenerate_index(web_dir: Path, latest_html: str) -> None:
 
     (web_dir / "index.html").write_text(index_html, encoding="utf-8")
 
+
+_ABOUT_CSS = """\
+@media (max-width: 640px) {
+  .code-table { font-size: 11px !important; }
+  .code-table td:first-child { padding: 0 8px !important; min-width: 36px !important; width: 36px !important; }
+  .code-table td:last-child { padding: 0 8px !important; }
+  .about-title { font-size: 18px !important; }
+  .about-container { padding: 0 8px 32px !important; margin: 16px auto !important; }
+}
+"""
 
 # ── About page (config viewer) ────────────────────────────────────────────────
 
@@ -118,6 +156,7 @@ def _generate_about_page(web_dir: Path, config_path: Path | None) -> None:
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>config.yaml — Morning Digest</title>
+  <style>{_ABOUT_CSS}</style>
 </head>
 <body style="margin:0;padding:0;background:#f6f8fa;
              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -126,10 +165,10 @@ def _generate_about_page(web_dir: Path, config_path: Path | None) -> None:
     <a href="/" style="color:#aaa;text-decoration:none;font-size:14px;">&larr; Archive</a>
   </div>
 
-  <div style="max-width:900px;margin:32px auto;padding:0 20px 64px;">
+  <div class="about-container" style="max-width:900px;margin:32px auto;padding:0 20px 64px;">
 
     <div style="margin-bottom:20px;">
-      <div style="font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;
+      <div class="about-title" style="font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;
                   font-size:22px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">
         config.yaml
       </div>
@@ -153,7 +192,7 @@ def _generate_about_page(web_dir: Path, config_path: Path | None) -> None:
 
       <!-- code body -->
       <div style="background:#0d1117;overflow-x:auto;">
-        <table style="border-collapse:collapse;width:100%;
+        <table class="code-table" style="border-collapse:collapse;width:100%;
                       font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;
                       font-size:13px;line-height:1.6;tab-size:2;">
           <tbody>

@@ -45,6 +45,14 @@ Secrets go in `.env` (loaded via `python-dotenv` in `main.py`):
 
 Config references these as `${VAR_NAME}` — resolved by `agent/config_loader.py`.
 
+## Deployment
+
+This project runs on a VPS (134.199.239.64) and the web archive is published at **https://dd.tanxy.net**.
+
+- Cron job runs daily: `30 14 * * * cd /root/my_daily_digest && .venv/bin/python main.py --web-dir /var/www/dd`
+- VPS timezone is UTC (14:30 UTC ≈ 7:30 AM Pacific)
+- Web files are served from `/var/www/dd`
+
 ## Architecture
 
 Pipeline: **Fetch → Dedup → Process (LLM) → Format → Deliver + Publish**
