@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Does
 
-A personal daily news digest agent. Fetches RSS feeds, uses an LLM (Claude/OpenAI) to filter and classify articles based on user interests, then delivers a curated HTML email. All personalization lives in `config.yaml`.
+A personal daily news digest agent. Fetches RSS feeds, uses an LLM (Claude/OpenAI) to filter and classify articles based on user interests, then delivers a curated HTML email and publishes to a web archive. All personalization lives in `config.yaml`.
 
 ## Running
 
@@ -23,6 +23,9 @@ python main.py --no-send
 
 # Save HTML preview to file
 python main.py --preview out.html
+
+# Save dated HTML to web archive dir and regenerate index + about pages
+python main.py --web-dir /var/www/dd
 
 # Use alternate config
 python main.py --config custom.yaml
@@ -44,7 +47,7 @@ Config references these as `${VAR_NAME}` — resolved by `agent/config_loader.py
 
 ## Architecture
 
-Pipeline: **Fetch → Dedup → Process (LLM) → Format → Deliver**
+Pipeline: **Fetch → Dedup → Process (LLM) → Format → Deliver + Publish**
 
 - `main.py` — Orchestrator, runs the pipeline end-to-end
 - `agent/fetcher.py` — Parses RSS feeds via `feedparser`, deduplicates by URL
@@ -52,6 +55,7 @@ Pipeline: **Fetch → Dedup → Process (LLM) → Format → Deliver**
 - `agent/processor.py` — Builds prompts from user profile + articles, calls LLM, parses JSON response with selections
 - `agent/formatter.py` — Renders selected items into styled HTML email, grouped by action type
 - `agent/deliverer.py` — Sends via SMTP (Gmail TLS on port 587)
+- `agent/web.py` — Saves dated digest pages, regenerates `index.html` (archive sidebar) and `about.html` (GitHub-style syntax-highlighted `config.yaml` viewer), prunes files older than 90 days
 - `agent/models.py` — `ContentItem` dataclass: the universal data structure all sources normalize into
 - `agent/config_loader.py` — Loads YAML config with `${ENV_VAR}` substitution from `os.environ`
 
