@@ -24,6 +24,7 @@ from agent.processor import process_items
 from agent.formatter import format_digest
 from agent.deliverer import send_email
 from agent.state import SeenTracker
+from agent.web import save_web_digest
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,13 +108,16 @@ def main() -> None:
         for item in selected:
             print(f"  [{item.action_type}] {item.title}")
             print(f"    {item.summary}\n")
-        tracker.mark_seen([item.url for item in selected])
-        return
+    else:
+        logger.info("Sending email...")
+        send_email(subject, html, config)
 
-    # Full run
-    logger.info("Sending email...")
-    send_email(subject, html, config)
     tracker.mark_seen([item.url for item in selected])
+
+    if args.web_dir:
+        save_web_digest(html, Path(args.web_dir), config, config_path=Path(args.config))
+        logger.info("Web digest saved to %s", args.web_dir)
+
     logger.info("Done!")
 
 
@@ -123,6 +127,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fetch-only", action="store_true", help="Only fetch and print")
     parser.add_argument("--no-send", action="store_true", help="Process but skip email")
     parser.add_argument("--preview", metavar="FILE", help="Save HTML to file")
+    parser.add_argument("--web-dir", metavar="DIR", help="Save dated HTML and update archive index")
     return parser.parse_args()
 
 
