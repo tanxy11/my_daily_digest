@@ -102,6 +102,10 @@ def main() -> None:
         tracker.mark_seen([item.url for item in selected])
         return
 
+    if args.web_dir:
+        save_web_digest(html, Path(args.web_dir), config, config_path=Path(args.config))
+        logger.info("Web digest saved to %s", args.web_dir)
+
     if args.no_send:
         print(f"\nSubject: {subject}")
         print(f"\n--- Digest ({len(selected)} items) ---")
@@ -110,13 +114,15 @@ def main() -> None:
             print(f"    {item.summary}\n")
     else:
         logger.info("Sending email...")
-        send_email(subject, html, config)
+        try:
+            send_email(subject, html, config)
+        except Exception:
+            if args.web_dir:
+                logger.exception("Email delivery failed after web digest was published")
+            else:
+                raise
 
     tracker.mark_seen([item.url for item in selected])
-
-    if args.web_dir:
-        save_web_digest(html, Path(args.web_dir), config, config_path=Path(args.config))
-        logger.info("Web digest saved to %s", args.web_dir)
 
     logger.info("Done!")
 
