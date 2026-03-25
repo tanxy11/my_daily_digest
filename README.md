@@ -1,87 +1,178 @@
 # Daily Digest
 
-A personal information agent that fetches news, filters by your interests, and delivers a curated digest to your inbox every morning.
+A personal daily news digest agent. It fetches RSS feeds, uses an LLM to pick the most relevant items for your interests, sends a styled HTML email, and can publish each digest to a small web archive.
 
 The code is the skeleton. Your `config.yaml` is what makes it yours.
 
-## Quick Start
+## What It Does
+
+Pipeline:
+
+`Fetch -> Dedup -> Process (LLM) -> Format -> Deliver + Publish`
+
+Key behavior:
+- Fetches from multiple RSS sources and deduplicates by URL
+- Filters out previously delivered links using `state/seen.json`
+- Uses Anthropic or OpenAI-compatible config settings to classify and summarize articles
+- Groups picks into `read_in_depth`, `check_it_out`, and `fyi`
+- Sends the digest by email
+- Optionally saves a dated HTML page and regenerates a web archive index
+
+## Setup
 
 ```bash
-# 1. Install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+pip install python-dotenv
+```
 
-# 2. Set up your secrets
-cp .env.example .env
-# Edit .env with your API key and email credentials
+Create `.env` with the secrets you use:
 
-# 3. Edit config.yaml with your interests and feeds
+```bash
+ANTHROPIC_API_KEY=...
+DIGEST_TO_EMAIL=you@example.com
 
-# 4. Test fetching (no LLM, no email — just see what comes back)
-source .env
+# Preferred on VPS / cloud hosts
+RESEND_API_KEY=...
+RESEND_FROM_ADDRESS=Daily Digest <digest@yourdomain.com>
+
+# Optional SMTP fallback
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+```
+
+Notes:
+- If `RESEND_API_KEY` is present, email is sent through the Resend HTTPS API.
+- If `RESEND_API_KEY` is missing, the app falls back to SMTP using `delivery.smtp` in `config.yaml`.
+- On many VPS providers, outbound SMTP ports are blocked, so Resend is the safer default for production.
+
+## Config
+
+Edit `config.yaml` to define:
+- your profile and interests
+- RSS feeds
+- digest size and writing style
+- delivery settings
+- LLM provider/model
+
+Environment variables referenced as `${VAR_NAME}` inside `config.yaml` are resolved by [`agent/config_loader.py`](/Users/xinyutan/Documents/projects/my_daily_digest/agent/config_loader.py).
+
+## Running
+
+Activate the virtualenv first:
+
+```bash
+source .venv/bin/activate
+```
+
+Common commands:
+
+```bash
+# Fetch feeds and print unseen items
 python main.py --fetch-only
 
-# 5. Run the full pipeline, save HTML locally (no email)
-python3 main.py --no-send
-# Open output/digest-YYYY-MM-DD.html in your browser
+# Process items but skip email sending
+python main.py --no-send
 
-# 6. Run for real
+# Save the rendered digest HTML to a local file
+python main.py --preview out.html
+
+# Full run: fetch, process, send email
 python main.py
+
+# Full run plus publish/update web archive
+python main.py --web-dir /var/www/dd
+
+# Use a different config file
+python main.py --config custom.yaml
 ```
 
-## Scheduling (Cron)
+Behavior note:
+- When `--web-dir` is provided, the web archive is published before email sending, so a temporary email failure does not prevent the site from updating.
+
+## Deployment
+
+This project currently runs on a VPS and publishes the archive at [dd.tanxy.net](https://dd.tanxy.net).
+
+Current cron example:
 
 ```bash
-# Edit crontab
-crontab -e
-
-# Add this line (8am Pacific, adjust for your server's timezone):
-0 15 * * * cd /path/to/daily-digest && source .env && python main.py >> logs/cron.log 2>&1
+30 14 * * * cd /root/my_daily_digest && .venv/bin/python main.py --web-dir /var/www/dd >> logs/cron.log 2>&1
 ```
 
-Note: `0 15 * * *` is 3pm UTC = 8am Pacific (during PDT). Adjust for PST or use a timezone-aware scheduler.
+Notes:
+- The server shown above runs in UTC.
+- `14:30 UTC` is `7:30 AM` Pacific during standard time.
+- Web files are written to `/var/www/dd`.
 
 ## Project Structure
 
-```
-daily-digest/
-├── config.yaml          ← YOUR data: interests, sources, preferences
-├── .env                 ← YOUR secrets: API keys, email credentials
-├── main.py              ← Orchestrator (fetch → process → deliver)
+```text
+my_daily_digest/
+├── config.yaml
+├── .env
+├── main.py
 ├── agent/
-│   ├── config.py        ← Config loader with env var substitution
-│   ├── models.py        ← Shared data types (ContentItem, DigestItem)
-│   ├── fetcher.py       ← Source fetchers (RSS, future: Twitter, etc.)
-│   ├── processor.py     ← LLM filtering + digest generation
-│   ├── delivery.py      ← Email sender
-│   └── state.py         ← Seen-article tracking (dedup across runs)
+│   ├── config_loader.py
+│   ├── deliverer.py
+│   ├── fetcher.py
+│   ├── formatter.py
+│   ├── models.py
+│   ├── processor.py
+│   ├── state.py
+│   └── web.py
+├── logs/
+│   └── cron.log
 ├── state/
-│   └── seen.json        ← Auto-generated: tracks delivered articles
-├── output/
-│   └── digest-*.html    ← Saved digests (for your records)
+│   └── seen.json
 └── requirements.txt
 ```
 
+## Web Archive
+
+When you run with `--web-dir`, the app:
+- saves a dated page like `2026-03-25.html`
+- regenerates `index.html` with the latest digest embedded and an archive sidebar
+- regenerates `about.html` as a readable `config.yaml` viewer
+- prunes old archive pages
+
+## Delivery
+
+Email delivery lives in [`agent/deliverer.py`](/Users/xinyutan/Documents/projects/my_daily_digest/agent/deliverer.py).
+
+Current delivery order:
+1. Prefer Resend if `RESEND_API_KEY` is set
+2. Otherwise fall back to SMTP
+
+Resend is recommended for server deployment because it uses HTTPS instead of SMTP ports.
+
 ## Adding Sources
 
-### More RSS feeds
-Just add entries to `sources.nyt.feeds` in config.yaml. Works for any RSS feed, not just NYT:
+Add more feeds in `config.yaml`:
 
 ```yaml
 sources:
-  nyt:
+  blogs:
+    type: rss
     feeds:
-      - name: Hacker News
-        url: https://hnrss.org/frontpage
-      - name: Stratechery
-        url: https://stratechery.com/feed/
+      - section: Stratechery
+        url: "https://stratechery.com/feed/"
+      - section: Hacker News
+        url: "https://hnrss.org/frontpage"
 ```
 
-### Twitter / X (future)
-Requires API access ($100/mo Basic tier). The fetcher interface is ready — implement `fetch_twitter()` in `agent/fetcher.py` returning `list[ContentItem]`.
+## State Tracking
 
-## Maintenance
+Delivered items are tracked in `state/seen.json`.
 
-```bash
-# Clean up seen-articles older than 30 days
-python main.py --prune
-```
+That means:
+- already delivered links are skipped on future runs
+- the digest is based on unseen content, not just the latest fetch
+
+## Troubleshooting
+
+- `No new items since last run`: the fetched URLs are already in `state/seen.json`
+- email fails on a VPS with SMTP: use Resend instead of direct SMTP
+- web archive not updating: run with `--web-dir /path/to/site`
+- config placeholders not resolving: make sure the env vars exist in `.env`
