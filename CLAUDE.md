@@ -59,7 +59,7 @@ Pipeline: **Fetch → Dedup → Process (LLM) → Format → Deliver + Publish**
 
 - `main.py` — Orchestrator, runs the pipeline end-to-end
 - `agent/fetcher.py` — Parses RSS feeds via `feedparser`, deduplicates by URL
-- `agent/state.py` — `SeenTracker` persists delivered URLs to `state/seen.json`, auto-prunes after 14 days
+- `agent/state.py` — `SeenTracker` persists delivered URLs to `state/seen.json`, auto-prunes after 7 days
 - `agent/processor.py` — Builds prompts from user profile + articles, calls LLM, parses JSON response with selections
 - `agent/formatter.py` — Renders selected items into styled HTML email, grouped by action type
 - `agent/deliverer.py` — Sends via SMTP (Gmail TLS on port 587)

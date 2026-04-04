@@ -10,12 +10,17 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 DEFAULT_STATE_PATH = Path(__file__).parent.parent / "state" / "seen.json"
+DEFAULT_MAX_AGE_DAYS = 7
 
 
 class SeenTracker:
     """Track URLs already included in a digest. Prunes old entries on save."""
 
-    def __init__(self, path: Path = DEFAULT_STATE_PATH, max_age_days: int = 14):
+    def __init__(
+        self,
+        path: Path = DEFAULT_STATE_PATH,
+        max_age_days: int = DEFAULT_MAX_AGE_DAYS,
+    ):
         self.path = path
         self.max_age_days = max_age_days
         self._seen: dict[str, str] = {}
@@ -27,6 +32,8 @@ class SeenTracker:
                 self._seen = json.loads(self.path.read_text())
             except (json.JSONDecodeError, OSError):
                 self._seen = {}
+        self._prune()
+        self._save()
 
     def is_seen(self, url: str) -> bool:
         return url in self._seen

@@ -169,6 +169,7 @@ Delivered items are tracked in `state/seen.json`.
 That means:
 - already delivered links are skipped on future runs
 - the digest is based on unseen content, not just the latest fetch
+- entries older than 7 days are pruned automatically when state loads or updates
 
 ## Troubleshooting
 

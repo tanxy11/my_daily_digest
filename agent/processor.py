@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from agent.models import ContentItem
 
 logger = logging.getLogger(__name__)
+_MAX_PARSE_ATTEMPTS = 2
 
 # ── Prompt templates ──────────────────────────────────────────
 
@@ -65,6 +67,34 @@ Here are today's articles:
 Select and summarize the most relevant ones for the reader.
 """
 
+JSON_REPAIR_SYSTEM_PROMPT = """\
+You repair malformed JSON produced by another model.
+
+Return ONLY valid JSON matching this schema:
+{
+  "selections": [
+    {
+      "url": "...",
+      "action_type": "read_in_depth" | "check_it_out" | "fyi",
+      "relevance_score": 0.0-1.0,
+      "summary": "..."
+    }
+  ]
+}
+
+Rules:
+- Preserve complete items when possible.
+- Drop incomplete or obviously corrupted trailing items instead of guessing.
+- Do not add prose, markdown fences, or explanations.
+"""
+
+JSON_REPAIR_USER_PROMPT = """\
+Repair this malformed JSON into valid JSON using the required schema.
+
+Malformed response:
+{raw_response}
+"""
+
 
 def build_profile_block(config: dict[str, Any]) -> str:
     """Format the user profile section of the prompt."""
@@ -113,9 +143,24 @@ def process_items(
     user_prompt = ARTICLES_USER_PROMPT.format(articles_block=articles_block)
 
     llm_cfg = config["llm"]
-    raw_response = _call_llm(system_prompt, user_prompt, llm_cfg)
+    selections: list[dict[str, Any]] = []
+    parsed_ok = False
 
-    selections = _parse_selections(raw_response)
+    for attempt in range(1, _MAX_PARSE_ATTEMPTS + 1):
+        raw_response = _call_llm(system_prompt, user_prompt, llm_cfg)
+        selections, parsed_ok = _parse_selections(raw_response, llm_cfg)
+        if parsed_ok:
+            break
+        if attempt < _MAX_PARSE_ATTEMPTS:
+            logger.warning(
+                "LLM returned malformed JSON on attempt %d/%d; retrying",
+                attempt,
+                _MAX_PARSE_ATTEMPTS,
+            )
+
+    if not parsed_ok:
+        logger.error("Unable to recover a valid LLM selection payload")
+        return []
 
     url_to_item = {item.url: item for item in items}
     selected: list[ContentItem] = []
@@ -174,25 +219,78 @@ def _call_openai(system_prompt: str, user_prompt: str, llm_cfg: dict) -> str:
     return response.choices[0].message.content
 
 
-def _parse_selections(raw: str) -> list[dict]:
-    """Parse JSON response from LLM, handling common formatting issues."""
+def _parse_selections(
+    raw: str,
+    llm_cfg: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Parse JSON response from LLM.
+
+    Returns a tuple of (selections, parsed_ok). An empty selection list can
+    still be valid when the model intentionally returns zero picks.
+    """
+    text = _clean_json_text(raw)
+    data = _load_json(text)
+
+    if data is None:
+        candidate = _extract_json_candidate(text)
+        if candidate is not None and candidate != text:
+            data = _load_json(candidate)
+
+    if data is None and llm_cfg is not None:
+        data = _repair_json_with_llm(text, llm_cfg)
+
+    if data is None:
+        logger.error("Failed to parse LLM JSON response:\n%s", text[:500])
+        return [], False
+
+    selections = _normalize_selections(data)
+    if selections is None:
+        return [], False
+    return selections, True
+
+
+def _clean_json_text(raw: str) -> str:
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
     if text.endswith("```"):
         text = text[:-3]
-    text = text.strip()
+    return text.strip()
 
+
+def _load_json(text: str) -> Any | None:
     try:
-        data = json.loads(text)
+        return json.loads(text)
     except json.JSONDecodeError:
-        logger.error("Failed to parse LLM JSON response:\n%s", text[:500])
-        return []
+        return None
 
-    if isinstance(data, dict) and "selections" in data:
+
+def _extract_json_candidate(text: str) -> str | None:
+    matches = re.findall(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+    if matches:
+        return matches[0].strip()
+    return None
+
+
+def _normalize_selections(data: Any) -> list[dict[str, Any]] | None:
+    if isinstance(data, dict) and "selections" in data and isinstance(data["selections"], list):
         return data["selections"]
     if isinstance(data, list):
         return data
 
     logger.error("Unexpected LLM response structure: %s", type(data))
-    return []
+    return None
+
+
+def _repair_json_with_llm(text: str, llm_cfg: dict[str, Any]) -> Any | None:
+    logger.warning("Attempting LLM JSON repair after parse failure")
+    repaired = _call_llm(
+        JSON_REPAIR_SYSTEM_PROMPT,
+        JSON_REPAIR_USER_PROMPT.format(raw_response=text[:12000]),
+        llm_cfg,
+    )
+    repaired_text = _clean_json_text(repaired)
+    repaired_data = _load_json(repaired_text)
+    if repaired_data is None:
+        logger.error("LLM JSON repair also failed:\n%s", repaired_text[:500])
+    return repaired_data
